@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>Qeets</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 <style>
@@ -698,6 +698,93 @@ body {
   .msg-body { max-width: 88%; }
   .emoji-picker { width: calc(100vw - 20px); right: -5px; }
 }
+
+/* ══════════════════════════════════
+   PRIVATE / PUBLIC TOGGLE
+══════════════════════════════════ */
+.privacy-toggle {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 16px; cursor: pointer; user-select: none;
+}
+.privacy-toggle-track {
+  width: 40px; height: 22px; border-radius: 11px;
+  background: var(--bg5); border: 1px solid var(--line2);
+  position: relative; transition: background .2s, border-color .2s;
+  flex-shrink: 0;
+}
+.privacy-toggle-track.on {
+  background: var(--acc-dim); border-color: rgba(0,229,160,.4);
+}
+.privacy-toggle-thumb {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--text3); position: absolute; top: 2px; left: 2px;
+  transition: transform .2s, background .2s;
+}
+.privacy-toggle-track.on .privacy-toggle-thumb {
+  transform: translateX(18px); background: var(--acc);
+}
+.privacy-toggle-label { font-size: 13px; color: var(--text2); }
+.privacy-toggle-label strong { color: var(--text); font-weight: 600; }
+.privacy-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 20px;
+  background: rgba(245,195,64,.12); color: var(--warn);
+  border: 1px solid rgba(245,195,64,.25);
+}
+
+/* ══════════════════════════════════
+   POPUP MODAL (Room Tidak Ada, dll)
+══════════════════════════════════ */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.7); z-index: 500;
+  align-items: center; justify-content: center;
+  backdrop-filter: blur(6px);
+  animation: fadeUp .2s ease;
+}
+.modal-overlay.show { display: flex; }
+.modal-box {
+  background: var(--bg2); border: 1px solid var(--line2);
+  border-radius: var(--rlg); padding: 32px 28px;
+  width: 320px; max-width: calc(100vw - 32px);
+  text-align: center;
+  box-shadow: 0 24px 64px rgba(0,0,0,.6);
+  animation: fadeUp .25s ease;
+}
+.modal-icon { font-size: 40px; margin-bottom: 12px; }
+.modal-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.modal-body { font-size: 13.5px; color: var(--text2); margin-bottom: 24px; line-height: 1.6; }
+.modal-btn {
+  padding: 11px 28px; background: var(--acc); color: #051910;
+  border: none; border-radius: var(--r); font-size: 14px;
+  font-weight: 700; cursor: pointer; font-family: 'Outfit', sans-serif;
+  transition: all .15s;
+}
+.modal-btn:hover { background: var(--acc2); }
+
+/* ══════════════════════════════════
+   MOBILE KEYBOARD FIX
+══════════════════════════════════ */
+@media (max-width: 600px) {
+  /* Use dvh so the viewport shrinks when keyboard opens */
+  #chat { height: 100dvh; }
+  .chat-main {
+    /* Ensure input area always stays visible */
+    min-height: 0;
+  }
+  .messages {
+    /* flex-shrink so messages compress when keyboard opens */
+    flex-shrink: 1;
+    min-height: 0;
+  }
+  .input-area {
+    /* Never let this get pushed off screen */
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+  }
+}
 </style>
 </head>
 <body>
@@ -742,6 +829,17 @@ body {
     <div id="panel-create" style="display:none">
       <label class="label">Nama Room</label>
       <input class="inp" id="inp-room-name" placeholder="mis. Frontend Squad" maxlength="24" />
+
+      <label class="label">Visibilitas Room</label>
+      <div class="privacy-toggle" id="privacy-toggle" onclick="togglePrivacy()">
+        <div class="privacy-toggle-track" id="privacy-track">
+          <div class="privacy-toggle-thumb"></div>
+        </div>
+        <span class="privacy-toggle-label" id="privacy-label">
+          <strong>Public</strong> — tampil di daftar room
+        </span>
+      </div>
+
       <button class="btn-main" id="btn-create" onclick="doCreate()">Buat & Masuk ⚡</button>
     </div>
 
@@ -854,6 +952,16 @@ body {
 <!-- Reaction picker template (appended dynamically) -->
 <div class="react-picker" id="react-picker"></div>
 
+<!-- Room Not Found Modal -->
+<div class="modal-overlay" id="modal-room-notfound">
+  <div class="modal-box">
+    <div class="modal-icon">🔍</div>
+    <div class="modal-title">Room Tidak Ada</div>
+    <div class="modal-body">Kode room yang kamu masukkan tidak ditemukan.<br>Periksa kembali kode dan coba lagi.</div>
+    <button class="modal-btn" onclick="closeModal('modal-room-notfound')">Coba Lagi</button>
+  </div>
+</div>
+
 <script src="/socket.io/socket.io.js"></script>
 <script>
 // ═══════════════════════════════════════════
@@ -864,6 +972,8 @@ let myColor = '#00e5a0';
 let myCode  = '';
 let myRoomName = '';
 let allRooms = [];
+let isPrivateRoom = false;  // tracks if current/creating room is private
+let createPrivate = false;  // toggle state in create panel
 
 // Typing: track per-user to avoid double / stuck indicator
 // typingUsers: Map<name, timeoutId>
@@ -965,12 +1075,18 @@ socket.on('rooms_list', (list) => {
   renderLobbyRooms(list);
   renderSidebarRooms(list);
 });
-socket.on('room_created', ({ code, roomName }) => {
+socket.on('room_created', ({ code, roomName, isPrivate }) => {
+  isPrivateRoom = !!isPrivate;
   doActualJoin(code, roomName);
 });
 socket.on('error_msg', (msg) => {
-  setStatus(msg);
   enableButtons(true);
+  setStatus('');
+  if (msg && msg.includes('tidak ditemukan')) {
+    showModal('modal-room-notfound');
+  } else {
+    setStatus(msg);
+  }
 });
 socket.on('history', (msgs) => {
   $('messages').innerHTML = '<div class="date-sep">Hari ini</div>';
@@ -1096,7 +1212,7 @@ window.doCreate = function() {
   if (!roomName) { setStatus('Masukkan nama room!'); return; }
   enableButtons(false);
   setStatus('Membuat room…', true);
-  socket.emit('create_room', { name: myName, roomName, color: myColor });
+  socket.emit('create_room', { name: myName, roomName, color: myColor, isPrivate: createPrivate });
 };
 
 window.doJoin = function() {
@@ -1106,14 +1222,24 @@ window.doJoin = function() {
   if (!code)   { setStatus('Masukkan kode room!'); return; }
   enableButtons(false);
   setStatus('Bergabung…', true);
-  doActualJoin(code);
+  // Validate room exists before transitioning
+  socket.emit('join_room', { code, name: myName, color: myColor });
+  // Store pending join info; actual transition happens on 'history' if room found
+  pendingJoin = { code };
 };
+
+// ─── Pending join (used by doJoin flow) ───
+let pendingJoin = null;
 
 function doActualJoin(code, roomNameHint) {
   myCode = code;
   const found = allRooms.find(r => r.code === code);
   myRoomName = found ? found.name : (roomNameHint || code);
-  socket.emit('join_room', { code, name: myName, color: myColor });
+  // If called from room_created, emit join_room (server already knows the room)
+  if (roomNameHint) {
+    socket.emit('join_room', { code, name: myName, color: myColor });
+  }
+  pendingJoin = null;
 
   // Clear typing state
   typingUsers.forEach(v => clearTimeout(v.tid));
@@ -1132,11 +1258,81 @@ function doActualJoin(code, roomNameHint) {
   enableButtons(true);
   setStatus('');
   closeSidebar();
+  updateTopbarPrivacy();
 }
+
+// ─── Room meta received: transition lobby→chat for doJoin flow ───
+socket.on('room_meta', ({ code, name, isPrivate }) => {
+  isPrivateRoom = !!isPrivate;
+  if (pendingJoin && pendingJoin.code === code) {
+    // Server confirmed room exists — now transition
+    myCode = code;
+    myRoomName = name || code;
+    pendingJoin = null;
+
+    typingUsers.forEach(v => clearTimeout(v.tid));
+    typingUsers.clear();
+    replyTo = null;
+
+    $('lobby').classList.remove('active');
+    $('lobby').style.display = 'none';
+    $('chat').style.display  = 'flex';
+    $('chat').classList.add('active');
+
+    $('room-title').textContent = '# ' + myRoomName;
+    $('room-sub').textContent   = 'Kode: ' + myCode;
+    $('copy-code-btn').setAttribute('data-code', myCode);
+
+    enableButtons(true);
+    setStatus('');
+    closeSidebar();
+  }
+  updateTopbarPrivacy();
+});
+
+function updateTopbarPrivacy() {
+  let badge = $('private-badge');
+  if (isPrivateRoom) {
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.id = 'private-badge';
+      badge.className = 'privacy-badge';
+      badge.innerHTML = '🔒 Private';
+      const topRight = $('copy-code-btn').parentNode;
+      topRight.insertBefore(badge, $('copy-code-btn'));
+    }
+  } else {
+    if (badge) badge.remove();
+  }
+}
+
+// ─── Privacy toggle for create panel ───
+window.togglePrivacy = function() {
+  createPrivate = !createPrivate;
+  const track = $('privacy-track');
+  const label = $('privacy-label');
+  track.classList.toggle('on', createPrivate);
+  if (createPrivate) {
+    label.innerHTML = '<strong>Private</strong> — hanya via kode, tidak tampil di daftar';
+  } else {
+    label.innerHTML = '<strong>Public</strong> — tampil di daftar room';
+  }
+};
+
+// ─── Modal helpers ───
+window.showModal = function(id) {
+  $(id).classList.add('show');
+};
+window.closeModal = function(id) {
+  $(id).classList.remove('show');
+  // Re-focus the code input after closing
+  const inp = $('inp-code');
+  if (inp) { inp.focus(); inp.select(); }
+};
 
 window.doLeave = function() {
   socket.emit('leave_room');
-  myCode = ''; myRoomName = '';
+  myCode = ''; myRoomName = ''; isPrivateRoom = false; pendingJoin = null;
   typingUsers.forEach(v => clearTimeout(v.tid));
   typingUsers.clear();
 
@@ -1176,12 +1372,16 @@ function renderSidebarRooms(list) {
   list.forEach(r => {
     const div = document.createElement('div');
     div.className = 'sb-room' + (r.code === myCode ? ' active' : '');
-    div.innerHTML = `<span style="opacity:.6">#</span>${esc(r.name)}`;
+    const lockIcon = r.isPrivate ? '🔒 ' : '';
+    div.innerHTML = `<span style="opacity:.6">#</span>${lockIcon}${esc(r.name)}`;
     div.onclick = () => {
       if (r.code !== myCode) {
         socket.emit('leave_room');
         myCode = '';
-        doActualJoin(r.code, r.name);
+        // Set pendingJoin so room_meta triggers transition
+        pendingJoin = { code: r.code };
+        myName = myName; // keep name
+        socket.emit('join_room', { code: r.code, name: myName, color: myColor });
       }
       closeSidebar();
     };
@@ -1529,6 +1729,26 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeFs();
 window.copyRoomCode = function() {
   navigator.clipboard.writeText(myCode).then(() => showToast('✓ Kode ' + myCode + ' disalin!'));
 };
+
+// ═══════════════════════════════════════════
+// MOBILE KEYBOARD FIX
+// On mobile, when keyboard opens, scroll messages down
+// so input stays visible
+// ═══════════════════════════════════════════
+if (window.visualViewport) {
+  let lastVH = window.visualViewport.height;
+  window.visualViewport.addEventListener('resize', () => {
+    const vvh = window.visualViewport.height;
+    const chat = $('chat');
+    if (chat && chat.classList.contains('active')) {
+      // Keyboard opened (viewport shrunk)
+      if (vvh < lastVH - 50) {
+        scrollBottom(true);
+      }
+    }
+    lastVH = vvh;
+  });
+}
 
 // ═══════════════════════════════════════════
 // INIT

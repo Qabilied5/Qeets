@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DevRoom</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #07090e;
+  --bg2:     #0d1017;
+  --bg3:     #12161f;
+  --bg4:     #181e2a;
+  --bg5:     #1f2738;
+  --line:    rgba(255,255,255,0.055);
+  --line2:   rgba(255,255,255,0.1);
+  --acc:     #00e5a0;
+  --acc2:    #00c48a;
+  --acc-dim: rgba(0,229,160,0.1);
+  --text:    #d8e4f2;
+  --text2:   #6e85a8;
+  --text3:   #384256;
+  --danger:  #f76060;
+  --warn:    #f5c340;
+  --r:       10px;
+  --rlg:     16px;
+}
+
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  font-family: 'Outfit', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ══════════════════════════════════
+   SCREENS
+══════════════════════════════════ */
+.screen { display: none; }
+
+/* ══════════════════════════════════
+   LOBBY
+══════════════════════════════════ */
+#lobby {
+  height: 100vh;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,229,160,0.08) 0%, transparent 70%);
+}
+
+#lobby.screen { display: none; }
+#lobby.active { display: flex; flex-direction: column; }
+
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--line2);
+  border-radius: var(--rlg);
+  padding: 36px 40px;
+  width: 430px;
+  max-width: 95vw;
+}
+
+.logo-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.logo-box {
+  width: 42px; height: 42px;
+  background: var(--acc);
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.logo-row h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+.logo-row p  { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+.label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text2);
+  margin-bottom: 7px;
+}
+
+.inp {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--line2);
+  border-radius: var(--r);
+  padding: 11px 14px;
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+  margin-bottom: 14px;
+}
+
+.inp:focus { border-color: var(--acc); box-shadow: 0 0 0 3px var(--acc-dim); }
+.inp::placeholder { color: var(--text3); }
+
+.inp-code {
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  font-size: 15px;
+}
+
+.color-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.col-opt {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform .15s, border-color .15s;
+  flex-shrink: 0;
+}
+.col-opt:hover { transform: scale(1.2); }
+.col-opt.sel   { border-color: #fff; transform: scale(1.1); }
+
+.tabs {
+  display: flex;
+  gap: 5px;
+  background: var(--bg3);
+  padding: 4px;
+  border-radius: var(--r);
+  margin-bottom: 18px;
+}
+
+.tab {
+  flex: 1;
+  padding: 8px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 7px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  font-family: 'Outfit', sans-serif;
+  transition: all .15s;
+}
+.tab.active { background: var(--bg5); color: var(--text); }
+
+.btn-main {
+  width: 100%;
+  padding: 13px;
+  background: var(--acc);
+  color: #051910;
+  border: none;
+  border-radius: var(--r);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Outfit', sans-serif;
+  transition: all .2s;
+  margin-top: 2px;
+}
+.btn-main:hover   { background: var(--acc2); transform: translateY(-1px); }
+.btn-main:active  { transform: translateY(0); }
+.btn-main:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+.divider {
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--text3);
+  margin: 16px 0;
+  position: relative;
+}
+.divider::before, .divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 42%;
+  height: 1px;
+  background: var(--line);
+}
+.divider::before { left: 0; }
+.divider::after  { right: 0; }
+
+.room-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 190px;
+  overflow-y: auto;
+}
+.room-list::-webkit-scrollbar { width: 4px; }
+.room-list::-webkit-scrollbar-thumb { background: var(--bg5); border-radius: 4px; }
+
+.room-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg3);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: all .15s;
+}
+.room-item:hover { border-color: var(--line2); background: var(--bg4); }
+.room-item-name  { font-size: 14px; font-weight: 500; }
+.room-item-meta  { font-size: 11px; color: var(--text2); }
+
+.status { font-size: 12px; min-height: 18px; margin-top: 10px; text-align: center; color: var(--danger); }
+.status.ok { color: var(--acc); }
+
+/* ══════════════════════════════════
+   CHAT
+══════════════════════════════════ */
+#chat {
+  height: 100vh;
+  flex-direction: row;
+}
+#chat.active { display: flex; }
+
+/* Sidebar */
+.sidebar {
+  width: 226px;
+  background: var(--bg2);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.sb-head {
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-shrink: 0;
+}
+.sb-logo { width: 28px; height: 28px; background: var(--acc); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+.sb-title { font-size: 15px; font-weight: 700; letter-spacing: -.3px; }
+
+.sb-sec {
+  padding: 12px 13px 5px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text3);
+  flex-shrink: 0;
+}
+
+.sb-rooms { overflow-y: auto; flex: 0 0 auto; max-height: 180px; }
+.sb-rooms::-webkit-scrollbar { width: 3px; }
+.sb-rooms::-webkit-scrollbar-thumb { background: var(--bg5); }
+
+.sb-room {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  font-size: 13.5px;
+  color: var(--text2);
+  cursor: pointer;
+  position: relative;
+  transition: background .12s, color .12s;
+}
+.sb-room:hover { background: var(--bg3); color: var(--text); }
+.sb-room.active { background: var(--acc-dim); color: var(--acc); font-weight: 600; }
+.sb-room.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 6px; bottom: 6px;
+  width: 3px;
+  background: var(--acc);
+  border-radius: 0 3px 3px 0;
+}
+
+.sb-members { overflow-y: auto; flex: 1; }
+.sb-members::-webkit-scrollbar { width: 3px; }
+.sb-members::-webkit-scrollbar-thumb { background: var(--bg5); }
+
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px;
+  font-size: 13px;
+  color: var(--text2);
+}
+.av {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700;
+  flex-shrink: 0;
+}
+.online-pip {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--acc);
+  box-shadow: 0 0 5px rgba(0,229,160,.4);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.sb-leave {
+  margin: auto 12px 12px;
+  padding: 9px;
+  background: transparent;
+  border: 1px solid var(--line2);
+  border-radius: var(--r);
+  color: var(--text2);
+  font-size: 12.5px;
+  font-family: 'Outfit', sans-serif;
+  cursor: pointer;
+  transition: all .15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.sb-leave:hover { border-color: var(--danger); color: var(--danger); background: rgba(247,96,96,.08); }
+
+/* Main */
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.topbar {
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.topbar-left h2 { font-size: 15px; font-weight: 600; }
+.topbar-left p  { font-size: 11.5px; color: var(--text2); margin-top: 1px; }
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--text2);
+  background: var(--bg3);
+  border: 1px solid var(--line);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.copy-code-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--acc);
+  background: var(--acc-dim);
+  border: 1px solid rgba(0,229,160,.2);
+  padding: 4px 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: 'Outfit', sans-serif;
+  transition: all .15s;
+}
+.copy-code-btn:hover { background: rgba(0,229,160,.18); }
+
+.live-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--acc);
+  animation: blink 1.5s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* Messages */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.messages::-webkit-scrollbar { width: 5px; }
+.messages::-webkit-scrollbar-thumb { background: var(--bg5); border-radius: 10px; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(7px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.msg-row {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  padding: 3px 0;
+  animation: fadeUp .22s ease;
+}
+.msg-row.mine { flex-direction: row-reverse; }
+
+.msg-av {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.msg-body { max-width: 72%; display: flex; flex-direction: column; }
+.msg-row.mine .msg-body { align-items: flex-end; }
+
+.msg-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: 11px;
+}
+.msg-row.mine .msg-meta { flex-direction: row-reverse; }
+.msg-author { font-size: 12.5px; font-weight: 600; }
+.msg-time   { color: var(--text3); }
+
+.bubble {
+  display: inline-block;
+  padding: 9px 13px;
+  border-radius: 14px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  word-break: break-word;
+  background: var(--bg3);
+  color: var(--text);
+  border: 1px solid var(--line);
+  max-width: 100%;
+  text-align: left;
+  white-space: pre-wrap;
+}
+.msg-row.mine .bubble {
+  background: var(--bg4);
+  border-color: rgba(0,229,160,.22);
+}
+
+/* Preview card */
+.preview-card {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--line2);
+  background: var(--bg3);
+  width: 460px;
+  max-width: 100%;
+}
+.preview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  background: var(--bg4);
+  border-bottom: 1px solid var(--line);
+}
+.preview-bar-left { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--text2); }
+.preview-pip { width: 7px; height: 7px; border-radius: 50%; background: var(--acc); }
+.preview-expand {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text2);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--line2);
+  border-radius: 6px;
+  padding: 3px 9px;
+  font-family: 'Outfit', sans-serif;
+  transition: all .15s;
+}
+.preview-expand:hover { color: var(--text); border-color: var(--line2); background: var(--bg5); }
+
+.preview-wrap {
+  width: 100%;
+  height: 240px;
+  background: #fff;
+  position: relative;
+  overflow: hidden;
+}
+.preview-wrap iframe {
+  width: 200%; height: 200%;
+  border: none;
+  transform: scale(.5);
+  transform-origin: top left;
+  pointer-events: none;
+}
+
+/* System msg */
+.sys-msg {
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--text3);
+  padding: 3px 0;
+  animation: fadeUp .22s ease;
+}
+
+/* Date sep */
+.date-sep {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text3);
+  font-size: 11px;
+  margin: 8px 0;
+}
+.date-sep::before, .date-sep::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+/* Typing */
+.typing-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 0;
+  animation: fadeUp .2s ease;
+}
+.typing-dots span {
+  display: inline-block;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--text3);
+  animation: tdot 1.2s infinite;
+}
+.typing-dots span:nth-child(2) { animation-delay: .2s; }
+.typing-dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes tdot { 0%,80%,100%{transform:scale(1);opacity:.5} 40%{transform:scale(1.4);opacity:1} }
+.typing-name { font-size: 11px; color: var(--text3); }
+
+/* Input */
+.input-area {
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+  background: var(--bg2);
+  flex-shrink: 0;
+}
+
+.code-hint {
+  display: none;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px;
+  background: var(--acc-dim);
+  border: 1px solid rgba(0,229,160,.2);
+  border-radius: 9px;
+  font-size: 12px;
+  color: var(--acc);
+  margin-bottom: 8px;
+}
+.code-hint.show { display: flex; }
+
+.input-wrap {
+  background: var(--bg3);
+  border: 1px solid var(--line2);
+  border-radius: 13px;
+  position: relative;
+  transition: border-color .2s;
+}
+.input-wrap:focus-within { border-color: rgba(0,229,160,.4); }
+
+.msg-ta {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 11px 50px 11px 14px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 13.5px;
+  color: var(--text);
+  resize: none;
+  min-height: 44px;
+  max-height: 120px;
+  line-height: 1.55;
+}
+.msg-ta::placeholder { color: var(--text3); }
+
+.send-btn {
+  position: absolute;
+  right: 8px; bottom: 8px;
+  width: 32px; height: 32px;
+  background: var(--acc);
+  border: none;
+  border-radius: 8px;
+  color: #051910;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s;
+}
+.send-btn:hover { background: var(--acc2); }
+
+.input-hint {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 6px;
+  padding: 0 2px;
+}
+
+/* Fullscreen overlay */
+.fs-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.82);
+  z-index: 300;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(8px);
+}
+.fs-overlay.open { display: flex; }
+.fs-win {
+  width: 92vw; height: 90vh;
+  background: #fff;
+  border-radius: var(--rlg);
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--line2);
+  box-shadow: 0 40px 100px rgba(0,0,0,.7);
+}
+.fs-win iframe { width: 100%; height: 100%; border: none; }
+.fs-close {
+  position: absolute;
+  top: 12px; right: 12px;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(0,0,0,.5);
+  border: 1px solid rgba(255,255,255,.2);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  z-index: 10;
+  transition: background .15s;
+}
+.fs-close:hover { background: rgba(0,0,0,.8); }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 28px; left: 50%;
+  transform: translateX(-50%) translateY(14px);
+  background: var(--acc);
+  color: #051910;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 22px;
+  border-radius: 30px;
+  opacity: 0;
+  pointer-events: none;
+  transition: all .3s;
+  z-index: 999;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Conn banner */
+.conn-banner {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 6px;
+  background: rgba(247,96,96,.1);
+  border-bottom: 1px solid rgba(247,96,96,.2);
+  font-size: 12px;
+  color: var(--danger);
+  flex-shrink: 0;
+}
+.conn-banner.show { display: flex; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ LOBBY ═══════════ -->
+<div id="lobby" class="screen active">
+  <div class="card">
+    <div class="logo-row">
+      <div class="logo-box">⚡</div>
+      <div>
+        <h1>DevRoom</h1>
+        <p>Real-time chat + live code preview</p>
+      </div>
+    </div>
+
+    <label class="label">Nama Kamu</label>
+    <input class="inp" id="inp-name" placeholder="mis. Budi, Sari, Alex…" maxlength="20" />
+
+    <label class="label">Warna Avatar</label>
+    <div class="color-row" id="color-row">
+      <div class="col-opt sel" style="background:#00e5a0" data-c="#00e5a0"></div>
+      <div class="col-opt"     style="background:#3d8ef7" data-c="#3d8ef7"></div>
+      <div class="col-opt"     style="background:#f76060" data-c="#f76060"></div>
+      <div class="col-opt"     style="background:#f5c340" data-c="#f5c340"></div>
+      <div class="col-opt"     style="background:#c47dff" data-c="#c47dff"></div>
+      <div class="col-opt"     style="background:#ff8c42" data-c="#ff8c42"></div>
+      <div class="col-opt"     style="background:#ff6fcf" data-c="#ff6fcf"></div>
+      <div class="col-opt"     style="background:#5ef5e0" data-c="#5ef5e0"></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" id="tab-join"   onclick="switchTab('join')">Gabung Room</button>
+      <button class="tab"        id="tab-create" onclick="switchTab('create')">Buat Room</button>
+    </div>
+
+    <div id="panel-join">
+      <label class="label">Kode Room</label>
+      <input class="inp inp-code" id="inp-code" placeholder="mis. ABG3K7" maxlength="10" />
+      <button class="btn-main" id="btn-join" onclick="doJoin()">Masuk Room ⚡</button>
+    </div>
+
+    <div id="panel-create" style="display:none">
+      <label class="label">Nama Room</label>
+      <input class="inp" id="inp-room-name" placeholder="mis. Frontend Squad" maxlength="24" />
+      <button class="btn-main" id="btn-create" onclick="doCreate()">Buat & Masuk ⚡</button>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <div class="divider">atau gabung room aktif</div>
+    <div class="room-list" id="room-list">
+      <div class="sys-msg" style="padding:14px">Menghubungkan ke server…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ CHAT ═══════════ -->
+<div id="chat" class="screen">
+  <div class="sidebar">
+    <div class="sb-head">
+      <div class="sb-logo">⚡</div>
+      <span class="sb-title">DevRoom</span>
+    </div>
+
+    <div class="sb-sec">Rooms</div>
+    <div class="sb-rooms" id="sb-rooms"></div>
+
+    <div class="sb-sec">Online</div>
+    <div class="sb-members" id="sb-members"></div>
+
+    <button class="sb-leave" onclick="doLeave()">← Keluar</button>
+  </div>
+
+  <div class="chat-main">
+    <div class="conn-banner" id="conn-banner">⚠ Koneksi terputus — mencoba ulang…</div>
+
+    <div class="topbar">
+      <div class="topbar-left">
+        <h2 id="room-title">#room</h2>
+        <p id="room-sub">Kode: …</p>
+      </div>
+      <div class="topbar-right">
+        <button class="copy-code-btn" id="copy-code-btn" onclick="copyRoomCode()">
+          📋 Salin Kode
+        </button>
+        <div class="badge">
+          <div class="live-dot"></div>
+          <span id="online-count">0 online</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="date-sep">Hari ini</div>
+    </div>
+
+    <div class="input-area">
+      <div class="code-hint" id="code-hint">
+        ⚡ Kode terdeteksi — akan tampil sebagai Live Preview!
+      </div>
+      <div class="input-wrap">
+        <textarea class="msg-ta" id="msg-ta"
+          placeholder="Tulis pesan… atau paste kode HTML/CSS/JS untuk live preview!"
+          rows="1"
+          onkeydown="onKey(event)"
+          oninput="onTaInput(this)"></textarea>
+        <button class="send-btn" onclick="sendMsg()" title="Kirim">➤</button>
+      </div>
+      <div class="input-hint">Enter kirim · Shift+Enter baris baru · Paste kode → otomatis preview</div>
+    </div>
+  </div>
+</div>
+
+<!-- Fullscreen preview -->
+<div class="fs-overlay" id="fs-overlay" onclick="closeFsClick(event)">
+  <div class="fs-win">
+    <button class="fs-close" onclick="closeFs()">✕</button>
+    <iframe id="fs-iframe" sandbox="allow-scripts allow-same-origin"></iframe>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Socket.io (served by the server) -->
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let myName  = '';
+let myColor = '#00e5a0';
+let myCode  = '';   // current room code
+let myRoomName = '';
+let typingTimer;
+let typingShown = false;
+let allRooms = [];  // latest rooms list from server
+
+const socket = io({ autoConnect: true });
+
+// ═══════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════
+const $ = id => document.getElementById(id);
+
+function initials(name) {
+  return name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function now() {
+  return new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+}
+
+function isDark(hex) {
+  const c = hex.replace('#', '');
+  const r = parseInt(c.slice(0,2),16), g = parseInt(c.slice(2,4),16), b = parseInt(c.slice(4,6),16);
+  return (r*299 + g*587 + b*114) / 1000 < 145;
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function scrollBottom() {
+  const m = $('messages');
+  m.scrollTop = m.scrollHeight;
+}
+
+function showToast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function isCode(text) {
+  const sigs = [
+    /<(!DOCTYPE|html|head|body|div|span|p|h[1-6]|a[ >]|script|style|link|meta|img|ul|ol|li|table|tr|td|form|input|button|canvas|svg)[^>]*>/i,
+    /\{[^}]*:[^}]*;[^}]*\}/,
+    /(function[\s(]|\bconst\b|\blet\b|\bvar\b|\bclass\b|\breturn\b|\bdocument\.|\bwindow\.|\bconsole\.)/,
+    /@(keyframes|media|import)/,
+  ];
+  return text.includes('\n') && sigs.some(r => r.test(text));
+}
+
+// ═══════════════════════════════════════════
+// SOCKET EVENTS
+// ═══════════════════════════════════════════
+socket.on('connect', () => {
+  $('conn-banner').classList.remove('show');
+  socket.emit('get_rooms');
+});
+
+socket.on('disconnect', () => {
+  $('conn-banner').classList.add('show');
+});
+
+socket.on('rooms_list', (list) => {
+  allRooms = list;
+  renderLobbyRooms(list);
+  renderSidebarRooms(list);
+});
+
+socket.on('room_created', ({ code, roomName }) => {
+  doActualJoin(code, roomName);
+});
+
+socket.on('error_msg', (msg) => {
+  setStatus(msg);
+  enableButtons(true);
+});
+
+socket.on('history', (msgs) => {
+  $('messages').innerHTML = '<div class="date-sep">Hari ini</div>';
+  msgs.forEach(m => appendMsg(m, false));
+  scrollBottom();
+});
+
+socket.on('members', (list) => {
+  renderMembers(list);
+  $('online-count').textContent = list.length + ' online';
+});
+
+socket.on('new_msg', (msg) => {
+  appendMsg(msg, true);
+  scrollBottom();
+});
+
+socket.on('user_joined', ({ name, color }) => {
+  appendSys(`${name} bergabung 👋`);
+});
+
+socket.on('user_left', ({ name }) => {
+  appendSys(`${name} meninggalkan room`);
+});
+
+socket.on('user_typing', ({ name, color }) => {
+  showTyping(name, color);
+});
+
+socket.on('user_stop_typing', () => {
+  hideTyping();
+});
+
+// ═══════════════════════════════════════════
+// LOBBY
+// ═══════════════════════════════════════════
+let activeTab = 'join';
+
+window.switchTab = function(tab) {
+  activeTab = tab;
+  $('tab-join').classList.toggle('active', tab === 'join');
+  $('tab-create').classList.toggle('active', tab === 'create');
+  $('panel-join').style.display   = tab === 'join'   ? '' : 'none';
+  $('panel-create').style.display = tab === 'create' ? '' : 'none';
+};
+
+document.querySelectorAll('.col-opt').forEach(o => {
+  o.addEventListener('click', () => {
+    document.querySelectorAll('.col-opt').forEach(x => x.classList.remove('sel'));
+    o.classList.add('sel');
+    myColor = o.dataset.c;
+  });
+});
+
+function setStatus(msg, ok = false) {
+  const el = $('status');
+  el.textContent = msg;
+  el.className = 'status' + (ok ? ' ok' : '');
+}
+
+function enableButtons(on) {
+  $('btn-join').disabled   = !on;
+  $('btn-create').disabled = !on;
+}
+
+window.doCreate = function() {
+  myName = $('inp-name').value.trim();
+  const roomName = $('inp-room-name').value.trim();
+  if (!myName)    { setStatus('Masukkan nama kamu!'); return; }
+  if (!roomName)  { setStatus('Masukkan nama room!'); return; }
+  enableButtons(false);
+  setStatus('Membuat room…', true);
+  socket.emit('create_room', { name: myName, roomName, color: myColor });
+};
+
+window.doJoin = function() {
+  myName = $('inp-name').value.trim();
+  const code = $('inp-code').value.trim().toUpperCase();
+  if (!myName) { setStatus('Masukkan nama kamu!'); return; }
+  if (!code)   { setStatus('Masukkan kode room!'); return; }
+  enableButtons(false);
+  setStatus('Bergabung…', true);
+  doActualJoin(code);
+};
+
+function doActualJoin(code, roomNameHint) {
+  myCode = code;
+  // Find room name from list or hint
+  const found = allRooms.find(r => r.code === code);
+  myRoomName = found ? found.name : (roomNameHint || code);
+
+  socket.emit('join_room', { code, name: myName, color: myColor });
+
+  // Switch to chat screen
+  $('lobby').classList.remove('active');
+  $('lobby').style.display = 'none';
+  $('chat').style.display = 'flex';
+  $('chat').classList.add('active');
+
+  $('room-title').textContent = '# ' + myRoomName;
+  $('room-sub').textContent   = 'Kode: ' + myCode;
+  $('copy-code-btn').setAttribute('data-code', myCode);
+
+  enableButtons(true);
+  setStatus('');
+}
+
+window.doLeave = function() {
+  socket.emit('leave_room');
+  myCode = '';
+  myRoomName = '';
+
+  $('chat').style.display = 'none';
+  $('chat').classList.remove('active');
+  $('lobby').style.display = '';
+  $('lobby').classList.add('active');
+
+  $('messages').innerHTML = '<div class="date-sep">Hari ini</div>';
+  socket.emit('get_rooms');
+};
+
+// ═══════════════════════════════════════════
+// RENDER HELPERS
+// ═══════════════════════════════════════════
+function renderLobbyRooms(list) {
+  const el = $('room-list');
+  if (!list.length) {
+    el.innerHTML = '<div class="sys-msg" style="padding:16px">Belum ada room — buat yang pertama!</div>';
+    return;
+  }
+  el.innerHTML = '';
+  [...list].reverse().forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'room-item';
+    div.innerHTML = `
+      <span class="room-item-name"># ${esc(r.name)}</span>
+      <span class="room-item-meta">${r.memberCount} online · ${r.code}</span>`;
+    div.onclick = () => {
+      $('inp-code').value = r.code;
+      switchTab('join');
+    };
+    el.appendChild(div);
+  });
+}
+
+function renderSidebarRooms(list) {
+  const el = $('sb-rooms');
+  el.innerHTML = '';
+  list.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'sb-room' + (r.code === myCode ? ' active' : '');
+    div.innerHTML = `<span style="opacity:.6">#</span>${esc(r.name)}`;
+    div.onclick = () => {
+      if (r.code !== myCode) {
+        socket.emit('leave_room');
+        myCode = '';
+        doActualJoin(r.code, r.name);
+      }
+    };
+    el.appendChild(div);
+  });
+}
+
+function renderMembers(list) {
+  const el = $('sb-members');
+  el.innerHTML = '';
+  list.forEach(m => {
+    const fg = isDark(m.color) ? '#fff' : '#000';
+    const isMe = m.name === myName;
+    const div = document.createElement('div');
+    div.className = 'member-row';
+    div.innerHTML = `
+      <div class="av" style="background:${m.color};color:${fg}">${initials(m.name)}</div>
+      <span style="font-size:13px;color:var(--${isMe?'text':'text2'})">${esc(m.name)}${isMe?' (kamu)':''}</span>
+      <div class="online-pip"></div>`;
+    el.appendChild(div);
+  });
+  $('online-count').textContent = list.length + ' online';
+}
+
+function appendMsg(data, animate) {
+  const isMine = data.name === myName;
+  const container = $('messages');
+
+  // Remove typing row first
+  const tr = $('typing-row');
+  if (tr) tr.remove();
+
+  const div = document.createElement('div');
+  div.className = 'msg-row' + (isMine ? ' mine' : '');
+  if (!animate) div.style.animation = 'none';
+
+  const fg = isDark(data.color) ? '#fff' : '#000';
+
+  let bodyHTML;
+  if (data.isCode) {
+    const uid = 'pv_' + data.id;
+    bodyHTML = `
+      <div class="preview-card">
+        <div class="preview-bar">
+          <div class="preview-bar-left">
+            <div class="preview-pip"></div>
+            Live Preview &middot; ${esc(data.name)} &middot; ${data.time}
+          </div>
+          <button class="preview-expand" onclick="openFs('${uid}')">⛶ Perbesar</button>
+        </div>
+        <div class="preview-wrap">
+          <iframe id="${uid}" sandbox="allow-scripts allow-same-origin"></iframe>
+        </div>
+      </div>`;
+  } else {
+    bodyHTML = `
+      <div class="msg-meta">
+        <span class="msg-author" style="color:${data.color}">${esc(data.name)}</span>
+        <span class="msg-time">${data.time}</span>
+      </div>
+      <div class="bubble">${esc(data.text)}</div>`;
+  }
+
+  div.innerHTML = `
+    <div class="msg-av" style="background:${data.color};color:${fg}">${initials(data.name)}</div>
+    <div class="msg-body">${bodyHTML}</div>`;
+
+  // Re-add typing row after
+  container.appendChild(div);
+  if (typingShown) container.appendChild(buildTypingRow());
+
+  if (data.isCode) {
+    setTimeout(() => {
+      const iframe = $('pv_' + data.id);
+      if (iframe) iframe.srcdoc = data.text;
+    }, 60);
+  }
+}
+
+function appendSys(text) {
+  const div = document.createElement('div');
+  div.className = 'sys-msg';
+  div.textContent = text;
+  $('messages').appendChild(div);
+  scrollBottom();
+}
+
+// Typing indicator
+let typingTimeout;
+
+function showTyping(name, color) {
+  hideTyping();
+  typingShown = true;
+  const row = buildTypingRow(name, color);
+  row.id = 'typing-row';
+  $('messages').appendChild(row);
+  scrollBottom();
+  clearTimeout(typingTimeout);
+  typingTimeout = setTimeout(hideTyping, 3000);
+}
+
+function hideTyping() {
+  const row = $('typing-row');
+  if (row) row.remove();
+  typingShown = false;
+}
+
+function buildTypingRow(name, color) {
+  const fg = color ? (isDark(color) ? '#fff' : '#000') : '#000';
+  const row = document.createElement('div');
+  row.className = 'typing-row';
+  row.innerHTML = `
+    <div class="msg-av" style="background:${color||'var(--bg5)'};color:${fg};width:28px;height:28px;font-size:9px">${name?initials(name):'?'}</div>
+    <div class="typing-dots"><span></span><span></span><span></span></div>
+    <span class="typing-name">${name?esc(name)+' mengetik…':'mengetik…'}</span>`;
+  return row;
+}
+
+// ═══════════════════════════════════════════
+// INPUT
+// ═══════════════════════════════════════════
+window.onKey = function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+};
+
+window.onTaInput = function(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+
+  const detected = isCode(el.value);
+  $('code-hint').classList.toggle('show', detected);
+
+  socket.emit('typing');
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(() => socket.emit('stop_typing'), 1500);
+};
+
+window.sendMsg = function() {
+  const ta = $('msg-ta');
+  const text = ta.value.trim();
+  if (!text || !myCode) return;
+
+  socket.emit('send_msg', { text, isCode: isCode(text) });
+
+  ta.value = '';
+  ta.style.height = 'auto';
+  $('code-hint').classList.remove('show');
+  socket.emit('stop_typing');
+};
+
+// ═══════════════════════════════════════════
+// FULLSCREEN PREVIEW
+// ═══════════════════════════════════════════
+window.openFs = function(iframeId) {
+  const src = $(iframeId)?.srcdoc || '';
+  $('fs-iframe').srcdoc = src;
+  $('fs-overlay').classList.add('open');
+};
+
+window.closeFs = function() {
+  $('fs-overlay').classList.remove('open');
+  $('fs-iframe').srcdoc = '';
+};
+
+window.closeFsClick = function(e) {
+  if (e.target === $('fs-overlay')) closeFs();
+};
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFs(); });
+
+// ═══════════════════════════════════════════
+// COPY ROOM CODE
+// ═══════════════════════════════════════════
+window.copyRoomCode = function() {
+  navigator.clipboard.writeText(myCode).then(() => showToast('✓ Kode ' + myCode + ' disalin!'));
+};
+</script>
+<script src="/backend/server.js"></script>
+</body>
+</html>

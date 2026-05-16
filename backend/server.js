@@ -24,10 +24,27 @@ const reactions = {};  // { [code]: { [msgId]: { [emoji]: Set<name> } } }
 const MAX_MSGS = 100;
 
 function getRoomList() {
-  return Object.values(rooms).map(r => ({
-    ...r,
-    memberCount: Object.keys(members[r.code] || {}).length,
-  }));
+  // Only return PUBLIC rooms
+  return Object.values(rooms)
+    .filter(r => !r.isPrivate)
+    .map(r => ({
+      ...r,
+      memberCount: Object.keys(members[r.code] || {}).length,
+    }));
+}
+
+// Delete room + all its data if empty
+function cleanupRoomIfEmpty(code) {
+  if (!rooms[code]) return;
+  const count = Object.keys(members[code] || {}).length;
+  if (count === 0) {
+    console.log(`[cleanup] Room #${code} kosong — dihapus`);
+    delete rooms[code];
+    delete members[code];
+    delete messages[code];
+    delete reactions[code];
+    io.emit('rooms_list', getRoomList());
+  }
 }
 
 function generateCode() {
@@ -45,13 +62,13 @@ io.on('connection', (socket) => {
   socket.on('get_rooms', () => socket.emit('rooms_list', getRoomList()));
 
   // ── Create room ──
-  socket.on('create_room', ({ name, roomName, color }) => {
+  socket.on('create_room', ({ name, roomName, color, isPrivate }) => {
     const code = generateCode();
-    rooms[code]    = { name: roomName, code, createdAt: Date.now(), createdBy: socket.id };
-    members[code]  = {};
-    messages[code] = [];
+    rooms[code]     = { name: roomName, code, createdAt: Date.now(), createdBy: socket.id, isPrivate: !!isPrivate };
+    members[code]   = {};
+    messages[code]  = [];
     reactions[code] = {};
-    socket.emit('room_created', { code, roomName });
+    socket.emit('room_created', { code, roomName, isPrivate: !!isPrivate });
     io.emit('rooms_list', getRoomList());
   });
 
@@ -86,7 +103,19 @@ io.on('connection', (socket) => {
 
     io.to(upperCode).emit('members', Object.values(members[upperCode]));
     socket.to(upperCode).emit('user_joined', { name, color });
-    io.emit('rooms_list', getRoomList());
+    // Send room meta (incl. isPrivate) to the joining socket
+    socket.emit('room_meta', { code: upperCode, name: rooms[upperCode].name, isPrivate: rooms[upperCode].isPrivate });
+    // For sidebar: send public list + the joined room itself (in case it's private)
+    const listForSocket = getRoomList();
+    if (rooms[upperCode].isPrivate) {
+      listForSocket.push({
+        ...rooms[upperCode],
+        memberCount: Object.keys(members[upperCode] || {}).length,
+      });
+    }
+    socket.emit('rooms_list', listForSocket);
+    // Broadcast public list to everyone else
+    socket.broadcast.emit('rooms_list', getRoomList());
     console.log(`[join] ${name} → #${upperCode}`);
   });
 
@@ -153,8 +182,9 @@ io.on('connection', (socket) => {
     socket.leave(code);
     io.to(code).emit('members', Object.values(members[code]));
     socket.to(code).emit('user_left', { name });
-    io.emit('rooms_list', getRoomList());
     socket.data = {};
+    // Delay cleanup slightly so disconnect flood doesn't race
+    setTimeout(() => cleanupRoomIfEmpty(code), 1500);
   }
 });
 

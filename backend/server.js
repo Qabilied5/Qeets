@@ -12,7 +12,7 @@ const io = new Server(server, {
   cors: { origin: '*' },
   pingTimeout: 60000,
   pingInterval: 25000,
-  maxHttpBufferSize: 10e6, // 10 MB for file uploads
+  maxHttpBufferSize: 100e6, // 100 MB for video uploads
 });
 
 // ─── Gemini AI setup ───
@@ -40,9 +40,9 @@ const storage = multer.diskStorage({
 });
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100 MB (for video)
   fileFilter: (req, file, cb) => {
-    const allowed = /\.(jpe?g|png|gif|webp|svg|pdf|txt|md|json|csv|zip|docx?|xlsx?|pptx?)$/i;
+    const allowed = /\.(jpe?g|png|gif|webp|svg|pdf|txt|md|json|csv|zip|docx?|xlsx?|pptx?|mp4|webm|mov|avi|mkv|mp3|ogg|wav|m4a|aac)$/i;
     if (allowed.test(file.originalname)) cb(null, true);
     else cb(new Error('Tipe file tidak diizinkan'));
   },
@@ -51,6 +51,10 @@ const upload = multer({
 const ROOT = path.join(__dirname, '..');
 app.use(express.static(ROOT));
 app.use('/uploads', express.static(UPLOADS_DIR));
+
+// PWA icons
+app.get('/icon-192.png', (_, res) => res.sendFile(path.join(ROOT, 'icon-192.png')));
+app.get('/icon-512.png', (_, res) => res.sendFile(path.join(ROOT, 'icon-512.png')));
 
 // ─── File upload endpoint ───
 app.post('/upload', upload.single('file'), (req, res) => {

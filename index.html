@@ -4,6 +4,12 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>Qeets</title>
+<link rel="manifest" href="/manifest.json" />
+<meta name="theme-color" content="#00e5a0" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Qeets" />
+<meta name="description" content="Real-time chat with AI bot, live code preview, and file sharing" />
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -620,7 +626,69 @@ body {
 }
 .modal-btn:hover { background: var(--acc2); }
 
-/* ══ MOBILE ══ */
+/* Video player */
+.video-wrap { max-width: 320px; margin-top: 4px; }
+.file-video {
+  width: 100%; border-radius: 10px; border: 1px solid var(--line2);
+  background: #000; display: block; max-height: 280px;
+}
+.file-video-name { font-size: 10.5px; color: var(--text3); margin-top: 4px; padding: 0 2px; }
+
+/* Audio player */
+.audio-wrap {
+  display: flex; align-items: center; gap: 10px; padding: 10px 13px;
+  background: var(--bg3); border: 1px solid var(--line2); border-radius: 12px;
+  max-width: 300px; margin-top: 4px;
+}
+.audio-icon { font-size: 22px; flex-shrink: 0; }
+.audio-inner { flex: 1; min-width: 0; }
+.audio-name { font-size: 12px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+audio { accent-color: var(--acc); }
+
+/* Upload progress */
+.upload-progress {
+  display: none; align-items: center; gap: 8px; padding: 6px 10px; margin-bottom: 8px;
+  background: var(--bg3); border: 1px solid var(--line2); border-left: 2.5px solid #3d8ef7;
+  border-radius: 8px; font-size: 12px;
+}
+.upload-progress.show { display: flex; }
+.progress-bar-wrap { flex: 1; background: var(--bg5); border-radius: 4px; height: 4px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: var(--acc); border-radius: 4px; transition: width .2s; width: 0%; }
+.progress-pct { font-size: 11px; color: var(--text2); min-width: 32px; text-align: right; }
+
+/* Image lightbox */
+.lightbox-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,.9);
+  z-index: 400; align-items: center; justify-content: center;
+  cursor: zoom-out; backdrop-filter: blur(8px);
+}
+.lightbox-overlay.open { display: flex; }
+.lightbox-img { max-width: 92vw; max-height: 90vh; border-radius: 8px; object-fit: contain; }
+.lightbox-close {
+  position: absolute; top: 16px; right: 16px; width: 36px; height: 36px;
+  border-radius: 50%; background: rgba(255,255,255,.12); border: none; color: #fff;
+  font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+
+/* Scroll to bottom btn */
+.scroll-btn {
+  display: none; position: absolute; bottom: 12px; right: 16px;
+  width: 36px; height: 36px; border-radius: 50%; background: var(--acc);
+  border: none; color: #051910; font-size: 16px; cursor: pointer;
+  align-items: center; justify-content: center; z-index: 20;
+  box-shadow: 0 4px 16px rgba(0,229,160,.35); transition: all .2s;
+}
+.scroll-btn.show { display: flex; }
+.scroll-btn:hover { transform: scale(1.1); }
+
+/* Unread badge on scroll btn */
+.scroll-btn-badge {
+  position: absolute; top: -4px; right: -4px; background: var(--danger);
+  color: #fff; font-size: 10px; font-weight: 700; min-width: 18px; height: 18px;
+  border-radius: 9px; display: none; align-items: center; justify-content: center; padding: 0 4px;
+}
+.scroll-btn-badge.show { display: flex; }
+
 @media (max-width: 600px) {
   :root { --sidebar-w: 240px; }
   .sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 200; transform: translateX(-100%); }
@@ -709,6 +777,11 @@ body {
 
     <div class="status" id="status"></div>
     <div class="divider">atau gabung room aktif</div>
+
+    <!-- PWA Install button (hidden until beforeinstallprompt) -->
+    <button id="pwa-install-btn" onclick="installPWA()" style="display:none;width:100%;padding:10px;background:transparent;border:1px solid var(--line2);border-radius:var(--r);color:var(--text2);font-size:13px;font-family:'Outfit',sans-serif;cursor:pointer;align-items:center;justify-content:center;gap:7px;margin-bottom:12px;transition:all .15s">
+      📲 Install Qeets App
+    </button>
     <div class="room-list" id="room-list">
       <div class="sys-msg" style="padding:14px">Menghubungkan ke server…</div>
     </div>
@@ -757,6 +830,12 @@ body {
       <div class="date-sep">Hari ini</div>
     </div>
 
+    <!-- Scroll to bottom button -->
+    <button class="scroll-btn" id="scroll-btn" onclick="scrollBottom(true)" title="Scroll ke bawah">
+      ↓
+      <span class="scroll-btn-badge" id="scroll-btn-badge"></span>
+    </button>
+
     <!-- Input Area -->
     <div class="input-area">
       <!-- Reply bar -->
@@ -766,6 +845,13 @@ body {
           <div class="reply-bar-text" id="reply-bar-text"></div>
         </div>
         <button class="reply-cancel" onclick="cancelReply()">✕</button>
+      </div>
+
+      <!-- Upload progress bar -->
+      <div class="upload-progress" id="upload-progress">
+        <span id="upload-progress-label" style="font-size:11px;color:var(--text2);white-space:nowrap">Mengupload…</span>
+        <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-bar-fill"></div></div>
+        <span class="progress-pct" id="progress-pct">0%</span>
       </div>
 
       <!-- File preview bar -->
@@ -807,11 +893,11 @@ body {
           <button class="send-btn" onclick="sendMsg()" title="Kirim">➤</button>
         </div>
       </div>
-      <div class="input-hint">Enter kirim · Shift+Enter baris baru · @Qeets tanya AI · @nama tag user · 📎 kirim file/gambar</div>
+      <div class="input-hint">Enter kirim · Shift+Enter baris baru · @Qeets tanya AI · @nama tag user · 📎 kirim gambar/video/audio/file (maks 100 MB)</div>
 
       <!-- Hidden file input -->
       <input type="file" id="file-input" style="display:none"
-        accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.pdf,.txt,.md,.json,.csv,.zip,.docx,.doc,.xlsx,.xls,.pptx"
+        accept="image/*,video/*,audio/*,.pdf,.txt,.md,.json,.csv,.zip,.docx,.doc,.xlsx,.xls,.pptx"
         onchange="onFileSelected(this)" />
     </div>
   </div>
@@ -823,6 +909,12 @@ body {
     <button class="fs-close" onclick="closeFs()">✕</button>
     <iframe id="fs-iframe" sandbox="allow-scripts allow-same-origin"></iframe>
   </div>
+</div>
+
+<!-- Image Lightbox -->
+<div class="lightbox-overlay" id="lightbox-overlay" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img class="lightbox-img" id="lightbox-img" src="" alt="" />
 </div>
 
 <!-- Toast -->
@@ -907,11 +999,27 @@ function isDark(hex) {
   return (r*299 + g*587 + b*114) / 1000 < 145;
 }
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+let unreadCount = 0;
 function scrollBottom(force) {
   const m = $('messages');
   const nearBottom = m.scrollHeight - m.scrollTop - m.clientHeight < 80;
-  if (force || nearBottom) m.scrollTop = m.scrollHeight;
+  if (force || nearBottom) {
+    m.scrollTop = m.scrollHeight;
+    unreadCount = 0;
+    $('scroll-btn').classList.remove('show');
+    $('scroll-btn-badge').classList.remove('show');
+  }
 }
+
+// Scroll button visibility
+document.addEventListener('DOMContentLoaded', () => {
+  const m = $('messages');
+  if (m) m.addEventListener('scroll', () => {
+    const nearBottom = m.scrollHeight - m.scrollTop - m.clientHeight < 120;
+    $('scroll-btn').classList.toggle('show', !nearBottom);
+    if (nearBottom) { unreadCount = 0; $('scroll-btn-badge').classList.remove('show'); }
+  });
+});
 function showToast(msg) {
   const t = $('toast');
   t.textContent = msg;
@@ -936,12 +1044,17 @@ function formatSize(bytes) {
 
 function fileIcon(mime, name) {
   if (mime.startsWith('image/')) return '🖼️';
+  if (mime.startsWith('video/')) return '🎬';
+  if (mime.startsWith('audio/')) return '🎵';
   if (mime === 'application/pdf') return '📄';
   if (mime.startsWith('text/')) return '📝';
   if (name.endsWith('.zip')) return '🗜️';
   if (name.match(/\.(docx?|xlsx?|pptx?)$/i)) return '📊';
   return '📎';
 }
+
+function isVideo(mime) { return mime && mime.startsWith('video/'); }
+function isAudio(mime) { return mime && mime.startsWith('audio/'); }
 
 // ═══════════════════════════════════════════
 // TEXT — render @mentions
@@ -1005,7 +1118,19 @@ socket.on('members', (list) => {
   renderMembers(list);
   $('online-count').textContent = list.length + ' online';
 });
-socket.on('new_msg', (msg) => { appendMsg(msg, true); scrollBottom(); });
+socket.on('new_msg', (msg) => {
+  const m = $('messages');
+  const nearBottom = m ? m.scrollHeight - m.scrollTop - m.clientHeight < 120 : true;
+  appendMsg(msg, true);
+  if (!nearBottom && msg.name !== myName) {
+    unreadCount++;
+    const badge = $('scroll-btn-badge');
+    badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+    badge.classList.add('show');
+  } else {
+    scrollBottom();
+  }
+});
 socket.on('user_joined', ({ name }) => appendSys(`${name} bergabung 👋`));
 socket.on('user_left',   ({ name }) => appendSys(`${name} meninggalkan room`));
 
@@ -1302,6 +1427,8 @@ function appendMsg(data, animate) {
   } else if (data.fileData) {
     const fd = data.fileData;
     const isImage = fd.mime && fd.mime.startsWith('image/');
+    const isVid   = fd.mime && fd.mime.startsWith('video/');
+    const isAud   = fd.mime && fd.mime.startsWith('audio/');
     if (isImage) {
       bodyHTML = `
         <div class="msg-meta">
@@ -1310,7 +1437,41 @@ function appendMsg(data, animate) {
         </div>
         ${replyHTML}
         ${data.text ? `<div class="bubble">${renderTextWithMentions(data.text)}</div>` : ''}
-        <img class="file-img" src="${esc(fd.url)}" alt="${esc(fd.name)}" onclick="window.open('${esc(fd.url)}','_blank')" loading="lazy" />
+        <img class="file-img" src="${esc(fd.url)}" alt="${esc(fd.name)}" onclick="openLightbox('${esc(fd.url)}')" loading="lazy" />
+        <div class="msg-reactions" id="reactions-${data.id}"></div>`;
+    } else if (isVid) {
+      bodyHTML = `
+        <div class="msg-meta">
+          <span class="msg-author" style="color:${data.color}">${esc(data.name)}</span>
+          <span class="msg-time">${data.time}</span>
+        </div>
+        ${replyHTML}
+        ${data.text ? `<div class="bubble">${renderTextWithMentions(data.text)}</div>` : ''}
+        <div class="video-wrap">
+          <video class="file-video" controls preload="metadata">
+            <source src="${esc(fd.url)}" type="${esc(fd.mime)}">
+            <a href="${esc(fd.url)}" target="_blank">Buka video ↗</a>
+          </video>
+          <div class="file-video-name">${esc(fd.name)} · ${formatSize(fd.size)}</div>
+        </div>
+        <div class="msg-reactions" id="reactions-${data.id}"></div>`;
+    } else if (isAud) {
+      bodyHTML = `
+        <div class="msg-meta">
+          <span class="msg-author" style="color:${data.color}">${esc(data.name)}</span>
+          <span class="msg-time">${data.time}</span>
+        </div>
+        ${replyHTML}
+        ${data.text ? `<div class="bubble">${renderTextWithMentions(data.text)}</div>` : ''}
+        <div class="audio-wrap">
+          <span class="audio-icon">🎵</span>
+          <div class="audio-inner">
+            <div class="audio-name">${esc(fd.name)}</div>
+            <audio controls preload="metadata" style="width:100%;margin-top:4px">
+              <source src="${esc(fd.url)}" type="${esc(fd.mime)}">
+            </audio>
+          </div>
+        </div>
         <div class="msg-reactions" id="reactions-${data.id}"></div>`;
     } else {
       bodyHTML = `
@@ -1448,17 +1609,40 @@ window.triggerFileInput = function() { $('file-input').click(); };
 window.onFileSelected = async function(input) {
   const file = input.files[0];
   if (!file) return;
-  if (file.size > 10 * 1024 * 1024) { showToast('❌ File terlalu besar (maks 10 MB)'); return; }
+  if (file.size > 100 * 1024 * 1024) { showToast('❌ File terlalu besar (maks 100 MB)'); return; }
 
-  showToast('⏳ Mengupload file…');
+  // Show progress bar
+  const prog = $('upload-progress');
+  const fill = $('progress-bar-fill');
+  const pct  = $('progress-pct');
+  const lbl  = $('upload-progress-label');
+  lbl.textContent = file.name.length > 24 ? file.name.slice(0, 22) + '…' : file.name;
+  fill.style.width = '0%'; pct.textContent = '0%';
+  prog.classList.add('show');
 
   const formData = new FormData();
   formData.append('file', file);
 
   try {
-    const resp = await fetch('/upload', { method: 'POST', body: formData });
-    if (!resp.ok) throw new Error('Upload gagal');
-    const data = await resp.json();
+    const data = await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/upload');
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const p = Math.round((e.loaded / e.total) * 100);
+          fill.style.width = p + '%';
+          pct.textContent = p + '%';
+        }
+      };
+      xhr.onload = () => {
+        if (xhr.status === 200) resolve(JSON.parse(xhr.responseText));
+        else reject(new Error('Upload gagal: ' + xhr.status));
+      };
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(formData);
+    });
+
+    prog.classList.remove('show');
     pendingFile = data;
 
     // Show preview bar
@@ -1475,6 +1659,7 @@ window.onFileSelected = async function(input) {
     bar.classList.add('show');
     showToast('✓ File siap dikirim!');
   } catch (err) {
+    prog.classList.remove('show');
     showToast('❌ Upload gagal: ' + err.message);
   }
   input.value = '';
@@ -1680,7 +1865,7 @@ window.openFs = function(iframeId) {
 };
 window.closeFs = function() { $('fs-overlay').classList.remove('open'); $('fs-iframe').srcdoc = ''; };
 window.closeFsClick = function(e) { if (e.target === $('fs-overlay')) closeFs(); };
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeFs(); closeEmojiPicker(); hideMentionPopup(); } });
+// Escape key handled in lightbox section above
 
 // ═══════════════════════════════════════════
 // COPY ROOM CODE
@@ -1698,6 +1883,56 @@ if (window.visualViewport) {
     lastVH = vvh;
   });
 }
+
+// ═══════════════════════════════════════════
+// LIGHTBOX
+// ═══════════════════════════════════════════
+window.openLightbox = function(url) {
+  $('lightbox-img').src = url;
+  $('lightbox-overlay').classList.add('open');
+};
+window.closeLightbox = function() {
+  $('lightbox-overlay').classList.remove('open');
+  $('lightbox-img').src = '';
+};
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeLightbox(); closeFs(); closeEmojiPicker(); hideMentionPopup(); }
+});
+
+// ═══════════════════════════════════════════
+// PWA — Service Worker Registration
+// ═══════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+      console.log('[PWA] SW registered, scope:', reg.scope);
+    }).catch(err => console.warn('[PWA] SW registration failed:', err));
+  });
+}
+
+// PWA Install prompt
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  // Show install button if in lobby
+  const btn = $('pwa-install-btn');
+  if (btn) btn.style.display = 'flex';
+});
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  const btn = $('pwa-install-btn');
+  if (btn) btn.style.display = 'none';
+  showToast('✓ Qeets berhasil diinstall!');
+});
+window.installPWA = function() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  deferredInstallPrompt.userChoice.then(r => {
+    if (r.outcome === 'accepted') showToast('🎉 Menginstall Qeets…');
+    deferredInstallPrompt = null;
+  });
+};
 
 // ═══════════════════════════════════════════
 // INIT

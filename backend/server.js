@@ -21,7 +21,7 @@ let genAI = null;
 let geminiModel = null;
 if (GEMINI_API_KEY) {
   genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-  geminiModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
   console.log('[Qeets Bot] Gemini AI aktif ✓');
 } else {
   console.warn('[Qeets Bot] GEMINI_API_KEY tidak diset — bot nonaktif');
@@ -130,7 +130,7 @@ async function handleBotMention(code, userMsg, userName) {
       .map(m => `${m.name}: ${m.text}`)
       .join('\n');
 
-    const prompt = `Kamu adalah Qeets, asisten AI yang ramah dan helpful di sebuah platform chat bernama Qeets. Kamu membantu user dengan pertanyaan apapun, terutama seputar coding, teknologi, dan diskusi umum. Jawab dalam bahasa yang sama dengan pertanyaan user (Indonesia atau Inggris). Jawab dengan singkat, informatif, dan friendly.
+    const prompt = `Kamu adalah Qeets, asisten AI yang ramah dan helpful di sebuah platform chat bernama Qeets. Kamu membantu user dengan pertanyaan apapun, terutama seputar coding, teknologi, dan diskusi umum. Jawab dalam bahasa yang sama dengan pertanyaan user (Indonesia atau Inggris). Jawab dengan singkat, to the point, informatif, dan friendly.
 
 Konteks chat terakhir:
 ${history}

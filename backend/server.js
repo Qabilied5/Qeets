@@ -107,6 +107,37 @@ function generateCode() {
 }
 
 // ─── Gemini bot responder ───
+
+const SYSTEM_INSTRUCTION = `Kamu adalah Qeets, asisten AI yang ramah dan helpful di sebuah platform chat bernama Qeets. Kamu membantu user dengan pertanyaan apapun, terutama seputar coding, teknologi, dan diskusi umum. Jawab dalam bahasa yang sama dengan pertanyaan user (Indonesia atau Inggris). Jawab dengan singkat, to the point, informatif, dan friendly. Kamu sadar bahwa kamu sedang berada di dalam grup chat, jadi kamu tahu siapa yang sedang berbicara dengan kamu berdasarkan nama yang disebut.`;
+
+// Build Gemini-format history from recent room messages
+function buildChatHistory(code) {
+  const roomMsgs = (messages[code] || []).slice(-30); // ambil 30 pesan terakhir
+  const history = [];
+
+  for (const m of roomMsgs) {
+    const isBot = m.name === BOT_NAME;
+    const role  = isBot ? 'model' : 'user';
+    const text  = isBot ? m.text : `[${m.name}]: ${m.text}`;
+
+    // Gemini requires alternating user/model turns — merge consecutive same-role messages
+    if (history.length > 0 && history[history.length - 1].role === role) {
+      history[history.length - 1].parts[0].text += '\n' + text;
+    } else {
+      history.push({ role, parts: [{ text }] });
+    }
+  }
+
+  // History harus diakhiri dengan role 'model' atau kosong (bukan 'user')
+  // karena pesan user terbaru akan dikirim via chat.sendMessage()
+  // Hapus entry terakhir jika role-nya 'user' (itu akan jadi pesan saat ini)
+  if (history.length > 0 && history[history.length - 1].role === 'user') {
+    history.pop();
+  }
+
+  return history;
+}
+
 async function handleBotMention(code, userMsg, userName) {
   if (!geminiModel) {
     sendBotMessage(code, '⚠️ Bot tidak aktif — GEMINI_API_KEY belum diset.');
@@ -120,29 +151,34 @@ async function handleBotMention(code, userMsg, userName) {
     return;
   }
 
-  // Show typing indicator from bot
   io.to(code).emit('bot_typing', { typing: true });
 
   try {
-    // Build context from recent messages
-    const history = (messages[code] || []).slice(-10)
-      .filter(m => m.name !== BOT_NAME)
-      .map(m => `${m.name}: ${m.text}`)
-      .join('\n');
+    const history = buildChatHistory(code);
 
-    const prompt = `Kamu adalah Qeets, asisten AI yang ramah dan helpful di sebuah platform chat bernama Qeets. Kamu membantu user dengan pertanyaan apapun, terutama seputar coding, teknologi, dan diskusi umum. Jawab dalam bahasa yang sama dengan pertanyaan user (Indonesia atau Inggris). Jawab dengan singkat, to the point, informatif, dan friendly.
+    // Buat sesi chat baru dengan history percakapan yang sudah ada
+    const chat = geminiModel.startChat({
+      history,
+      systemInstruction: SYSTEM_INSTRUCTION,
+    });
 
-Konteks chat terakhir:
-${history}
-
-${userName} bertanya: ${query}`;
-
-    const result = await geminiModel.generateContent(prompt);
+    // Kirim pesan user saat ini sebagai giliran baru
+    const result = await chat.sendMessage(`[${userName}]: ${query}`);
     const text = result.response.text();
     sendBotMessage(code, text, userName);
   } catch (err) {
     console.error('[Gemini error]', err.message);
-    sendBotMessage(code, `Maaf ${userName}, aku sedang tidak bisa menjawab sekarang. Coba lagi nanti ya! 🙏`);
+
+    let errMsg = `Maaf ${userName}, aku sedang tidak bisa menjawab sekarang. Coba lagi nanti ya! 🙏`;
+    if (err.message?.includes('404') || err.message?.includes('not found')) {
+      errMsg = `⚠️ Model AI tidak ditemukan. Hubungi admin untuk memperbarui konfigurasi bot.`;
+    } else if (err.message?.includes('429') || err.message?.includes('quota')) {
+      errMsg = `⚠️ Batas penggunaan AI tercapai. Coba lagi dalam beberapa saat ya, ${userName}!`;
+    } else if (err.message?.includes('API_KEY') || err.message?.includes('401')) {
+      errMsg = `⚠️ Konfigurasi bot bermasalah. Hubungi admin ya!`;
+    }
+
+    sendBotMessage(code, errMsg, userName);
   } finally {
     io.to(code).emit('bot_typing', { typing: false });
   }

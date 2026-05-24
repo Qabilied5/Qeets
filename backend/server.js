@@ -277,10 +277,8 @@ async function handleBotMention(code, userMsg, userName) {
   io.to(code).emit('bot_typing', { typing: true });
 
   try {
-    const history = buildChatHistory(code);
-
     const chat = geminiModel.startChat({
-      history,
+      history: [],
       systemInstruction: SYSTEM_INSTRUCTION,
     });
 
@@ -288,18 +286,10 @@ async function handleBotMention(code, userMsg, userName) {
     const text = result.response.text();
     sendBotMessage(code, text, userName);
   } catch (err) {
-    console.error('[Gemini error]', err.message);
-    console.error('[Gemini RAW error]', JSON.stringify(err, Object.getOwnPropertyNames(err)));
-    let errMsg = `Maaf ${userName}, aku sedang tidak bisa menjawab sekarang. Coba lagi nanti ya! 🙏`;
-    if (err.message?.includes('404') || err.message?.includes('not found')) {
-      errMsg = `⚠️ Model AI tidak ditemukan. Hubungi admin untuk memperbarui konfigurasi bot.`;
-    } else if (err.message?.includes('429') || err.message?.includes('quota')) {
-      errMsg = `⚠️ Batas penggunaan AI tercapai. Coba lagi dalam beberapa saat ya, ${userName}!`;
-    } else if (err.message?.includes('API_KEY') || err.message?.includes('401')) {
-      errMsg = `⚠️ Konfigurasi bot bermasalah. Hubungi admin ya!`;
-    }
-
-    sendBotMessage(code, errMsg, userName);
+    // Tampilkan error asli di chat untuk debug
+    const rawMsg = err?.message || String(err);
+    const status = err?.status || err?.statusCode || err?.code || '?';
+    sendBotMessage(code, `🔴 DEBUG [${status}]: ${rawMsg}`);
   } finally {
     io.to(code).emit('bot_typing', { typing: false });
   }

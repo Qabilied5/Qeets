@@ -207,7 +207,9 @@ async function handleGameAnswer(code, text, userName) {
     game.active = false;
     io.to(code).emit('bot_typing', { typing: true });
     try {
-      const chat = geminiModel.startChat({ systemInstruction: GAME_SYSTEM });
+      const geminiModel = getModelForRoom(code);
+      if (!geminiModel) throw new Error('No API key available');
+      const chat = geminiModel.startChat({ history: [], systemInstruction: GAME_SYSTEM });
       const answerList = [...game.answers.entries()].map(([n, a]) => `${n}: "${a}"`).join('\n');
       const result = await chat.sendMessage(
         `Pertanyaan: "${game.question}"\n\nJawaban pemain:\n${answerList}\n\nNilai setiap jawaban dengan format:\n[Nama]: ✅ Benar / ❌ Salah / 🟡 Hampir — (koreksi singkat jika perlu). Ringkas, maks 1 baris per orang. Akhiri dengan skor total.`
@@ -332,16 +334,9 @@ io.on('connection', (socket) => {
   socket.on('set_api_key', ({ key }) => {
     if (key && typeof key === 'string' && key.length > 10) {
       socketApiKeys[socket.id] = key.trim();
-      console.log(`[API key] Socket ${socket.id} set a Gemini key`);
+      console.log(`[API key] Socket ${socket.id} set key: ${key.slice(0, 8)}...`);
     }
   });
-
-  socket.on('set_api_key', ({ key }) => {
-  if (key && typeof key === 'string' && key.length > 10) {
-    socketApiKeys[socket.id] = key.trim();
-    console.log(`[API key] Socket ${socket.id} set key: ${key.slice(0, 8)}...`);
-  }
-});
 
   // ── Create room ──
   socket.on('create_room', ({ name, roomName, color, isPrivate }) => {

@@ -467,6 +467,8 @@ window.closeSidebar  = closeSidebar;
 socket.on('connect', () => {
   $('conn-banner').classList.remove('show');
   socket.emit('get_rooms');
+  // Kirim ulang API key setiap connect/reconnect
+  if (geminiApiKey) socket.emit('set_api_key', { key: geminiApiKey });
 });
 socket.on('disconnect', () => $('conn-banner').classList.add('show'));
 
@@ -644,7 +646,6 @@ window.doCreate = function() {
   enableButtons(false);
   setStatus('Membuat room…', true);
   socket.emit('create_room', { name: myName, roomName, color: myColor, isPrivate: createPrivate });
-  if (geminiApiKey) socket.emit('set_api_key', { key: geminiApiKey });
 };
 
 window.doJoin = function() {
@@ -655,7 +656,6 @@ window.doJoin = function() {
   enableButtons(false);
   setStatus('Bergabung…', true);
   socket.emit('join_room', { code, name: myName, color: myColor });
-  if (geminiApiKey) socket.emit('set_api_key', { key: geminiApiKey });
   pendingJoin = { code };
 };
 

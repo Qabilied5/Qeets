@@ -162,14 +162,14 @@ async function handleGameStart(code, text, userName) {
   try {
     const chat = geminiModel.startChat({ history: [], systemInstruction: { role: "system", parts: [{ text: GAME_SYSTEM }] } });
     const result = await chat.sendMessage(
-      `Buat 1 pertanyaan kuis singkat (maks 2 kalimat) tentang: "${topic}". Hanya tulis pertanyaannya saja, tanpa jawaban.`
+      `Buat 1 pertanyaan kuis singkat (maks 4 kalimat) tentang: "${topic}". Hanya tulis pertanyaannya saja, tanpa jawaban.`
     );
     const question = result.response.text().trim();
     games[code].question = question;
 
     const memberList = Object.values(members[code] || {}).map(m => m.name).join(', ');
     sendBotMessage(code,
-      `🎮 **GAME DIMULAI!** Topik: ${topic}\n\n❓ ${question}\n\n` +
+      `🎮 GAME DIMULAI! \nTopik: ${topic}\n\n❓ ${question}\n\n` +
       `Jawab dengan mengetik: @Answer [jawaban kamu]\n` +
       `Menunggu ${memberCount} pemain: ${memberList}`
     );
@@ -215,7 +215,7 @@ async function handleGameAnswer(code, text, userName) {
         `Pertanyaan: "${game.question}"\n\nJawaban pemain:\n${answerList}\n\nNilai setiap jawaban dengan format:\n[Nama]: ✅ Benar / ❌ Salah / 🟡 Hampir — (koreksi singkat jika perlu). Ringkas, maks 1 baris per orang. Akhiri dengan skor total.`
       );
       const verdict = result.response.text().trim();
-      sendBotMessage(code, `🏆 **HASIL KUIS!**\n\n${verdict}\n\n_Ketik @Qeets Game [topik] untuk ronde baru!_`);
+      sendBotMessage(code, `🏆 HASIL KUIS!\n\n${verdict}\n\nKetik @Qeets Game [topik] untuk ronde baru!`);
       io.to(code).emit('game_ended', { verdict });
     } catch (err) {
       console.error('[Game eval error]', err.message);

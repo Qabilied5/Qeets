@@ -160,7 +160,7 @@ async function handleGameStart(code, text, userName) {
 
   io.to(code).emit('bot_typing', { typing: true });
   try {
-    const chat = geminiModel.startChat({ history: [], systemInstruction: GAME_SYSTEM });
+    const chat = geminiModel.startChat({ history: [], systemInstruction: { role: "system", parts: [{ text: GAME_SYSTEM }] } });
     const result = await chat.sendMessage(
       `Buat 1 pertanyaan kuis singkat (maks 2 kalimat) tentang: "${topic}". Hanya tulis pertanyaannya saja, tanpa jawaban.`
     );
@@ -209,7 +209,7 @@ async function handleGameAnswer(code, text, userName) {
     try {
       const geminiModel = getModelForRoom(code);
       if (!geminiModel) throw new Error('No API key available');
-      const chat = geminiModel.startChat({ history: [], systemInstruction: GAME_SYSTEM });
+      const chat = geminiModel.startChat({ history: [], systemInstruction: { role: "system", parts: [{ text: GAME_SYSTEM }] } });
       const answerList = [...game.answers.entries()].map(([n, a]) => `${n}: "${a}"`).join('\n');
       const result = await chat.sendMessage(
         `Pertanyaan: "${game.question}"\n\nJawaban pemain:\n${answerList}\n\nNilai setiap jawaban dengan format:\n[Nama]: ✅ Benar / ❌ Salah / 🟡 Hampir — (koreksi singkat jika perlu). Ringkas, maks 1 baris per orang. Akhiri dengan skor total.`
@@ -279,7 +279,7 @@ async function handleBotMention(code, userMsg, userName) {
   try {
     const chat = geminiModel.startChat({
       history: [],
-      systemInstruction: SYSTEM_INSTRUCTION,
+      systemInstruction: { role: "system", parts: [{ text: SYSTEM_INSTRUCTION }] },
     });
 
     const result = await chat.sendMessage(`[${userName}]: ${query}`);

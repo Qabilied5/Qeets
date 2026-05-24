@@ -77,12 +77,26 @@ const reactions = {};   // { [code]: { [msgId]: { [emoji]: Set<name> } } }
 const games     = {};   // { [code]: { active, question, topic, answers: Map<name, answer>, expectedCount } }
 const socketApiKeys = {}; // { [socketId]: apiKey } — per-socket Gemini API key from client
 
+// function getModelForRoom(code) {
+//   const roomMembers = members[code] || {};
+//   for (const sid of Object.keys(roomMembers)) {
+//     if (socketApiKeys[sid]) return makeGeminiModel(socketApiKeys[sid]);
+//   }
+//   return null; // no key available
+// }
+
 function getModelForRoom(code) {
   const roomMembers = members[code] || {};
+  console.log('[getModelForRoom] members:', Object.keys(roomMembers));
+  console.log('[getModelForRoom] socketApiKeys:', Object.keys(socketApiKeys));
   for (const sid of Object.keys(roomMembers)) {
-    if (socketApiKeys[sid]) return makeGeminiModel(socketApiKeys[sid]);
+    if (socketApiKeys[sid]) {
+      console.log('[getModelForRoom] found key for sid:', sid);
+      return makeGeminiModel(socketApiKeys[sid]);
+    }
   }
-  return null; // no key available
+  console.log('[getModelForRoom] NO KEY FOUND');
+  return null;
 }
 
 const MAX_MSGS = 100;
@@ -273,7 +287,7 @@ async function handleBotMention(code, userMsg, userName) {
     sendBotMessage(code, text, userName);
   } catch (err) {
     console.error('[Gemini error]', err.message);
-
+    console.error('[Gemini RAW error]', JSON.stringify(err, Object.getOwnPropertyNames(err)));
     let errMsg = `Maaf ${userName}, aku sedang tidak bisa menjawab sekarang. Coba lagi nanti ya! 🙏`;
     if (err.message?.includes('404') || err.message?.includes('not found')) {
       errMsg = `⚠️ Model AI tidak ditemukan. Hubungi admin untuk memperbarui konfigurasi bot.`;
@@ -321,6 +335,13 @@ io.on('connection', (socket) => {
       console.log(`[API key] Socket ${socket.id} set a Gemini key`);
     }
   });
+
+  socket.on('set_api_key', ({ key }) => {
+  if (key && typeof key === 'string' && key.length > 10) {
+    socketApiKeys[socket.id] = key.trim();
+    console.log(`[API key] Socket ${socket.id} set key: ${key.slice(0, 8)}...`);
+  }
+});
 
   // ── Create room ──
   socket.on('create_room', ({ name, roomName, color, isPrivate }) => {

@@ -4,7 +4,6 @@ const { Server } = require('socket.io');
 const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 const server = http.createServer(app);
@@ -16,16 +15,17 @@ const io = new Server(server, {
 });
 
 // ─── Gemini AI setup ───
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-let genAI = null;
-let geminiModel = null;
-if (GEMINI_API_KEY) {
-  genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-  geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-  console.log('[Qeets Bot] Gemini AI aktif ✓');
-} else {
-  console.warn('[Qeets Bot] GEMINI_API_KEY tidak diset — bot nonaktif');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+function makeGeminiModel(apiKey) {
+  if (!apiKey) return null;
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    return genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  } catch { return null; }
 }
+
+console.log('[Qeets Bot] Gemini AI siap — menunggu API key dari user');
 
 // ─── File upload setup ───
 const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
@@ -75,6 +75,15 @@ const members   = {};   // { [code]: { [socketId]: { name, color, id } } }
 const messages  = {};   // { [code]: [...msgObjects] }
 const reactions = {};   // { [code]: { [msgId]: { [emoji]: Set<name> } } }
 const games     = {};   // { [code]: { active, question, topic, answers: Map<name, answer>, expectedCount } }
+const socketApiKeys = {}; // { [socketId]: apiKey } — per-socket Gemini API key from client
+
+function getModelForRoom(code) {
+  const roomMembers = members[code] || {};
+  for (const sid of Object.keys(roomMembers)) {
+    if (socketApiKeys[sid]) return makeGeminiModel(socketApiKeys[sid]);
+  }
+  return null; // no key available
+}
 
 const MAX_MSGS = 100;
 const BOT_NAME  = 'Qeets';
@@ -120,8 +129,9 @@ const GAME_SYSTEM = `Kamu adalah Qeets, host kuis interaktif di chat. Tugasmu:
 Format respons HARUS ringkas. Bahasa menyesuaikan bahasa user.`;
 
 async function handleGameStart(code, text, userName) {
+  const geminiModel = getModelForRoom(code);
   if (!geminiModel) {
-    sendBotMessage(code, '⚠️ Bot tidak aktif — GEMINI_API_KEY belum diset.');
+    sendBotMessage(code, '⚠️ Bot tidak aktif — masukkan Gemini API Key di halaman lobby sebelum bergabung room.');
     return;
   }
 
@@ -235,8 +245,9 @@ function buildChatHistory(code) {
 }
 
 async function handleBotMention(code, userMsg, userName) {
+  const geminiModel = getModelForRoom(code);
   if (!geminiModel) {
-    sendBotMessage(code, '⚠️ Bot tidak aktif — GEMINI_API_KEY belum diset.');
+    sendBotMessage(code, '⚠️ Bot tidak aktif — masukkan Gemini API Key di halaman lobby sebelum bergabung room.');
     return;
   }
 
@@ -304,6 +315,14 @@ io.on('connection', (socket) => {
   console.log(`[connect] ${socket.id}`);
 
   socket.on('get_rooms', () => socket.emit('rooms_list', getRoomList()));
+
+  // ── API Key (per-socket, from client) ──
+  socket.on('set_api_key', ({ key }) => {
+    if (key && typeof key === 'string' && key.length > 10) {
+      socketApiKeys[socket.id] = key.trim();
+      console.log(`[API key] Socket ${socket.id} set a Gemini key`);
+    }
+  });
 
   // ── Create room ──
   socket.on('create_room', ({ name, roomName, color, isPrivate }) => {
@@ -448,7 +467,11 @@ io.on('connection', (socket) => {
 
   // ── Leave room ──
   socket.on('leave_room', () => handleLeave(socket));
-  socket.on('disconnect', () => { handleLeave(socket); console.log(`[disconnect] ${socket.id}`); });
+  socket.on('disconnect', () => {
+    handleLeave(socket);
+    delete socketApiKeys[socket.id];
+    console.log(`[disconnect] ${socket.id}`);
+  });
 
   function handleLeave(socket) {
     const { name, code } = socket.data || {};

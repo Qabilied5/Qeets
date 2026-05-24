@@ -37,6 +37,33 @@
   color: var(--text2);
   transition: color .2s;
 }
+/* ── API Key Section ── */
+.api-key-section {
+  border: 1px solid var(--line2);
+  border-radius: var(--r);
+  padding: 10px 13px;
+  margin-bottom: 14px;
+  background: var(--bg2);
+  cursor: pointer;
+}
+.api-key-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text1);
+  user-select: none;
+}
+.api-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background .3s;
+}
+.api-dot-empty  { background: var(--bg5); }
+.api-dot-filled { background: #00e5a0; box-shadow: 0 0 6px #00e5a088; }
+.api-dot-error  { background: #f76060; }
 </style>
 </head>
 <body>
@@ -94,6 +121,32 @@
     </div>
 
     <div class="status" id="status"></div>
+
+    <!-- API Key Input -->
+    <div class="api-key-section">
+      <div class="api-key-header" onclick="toggleApiKey()">
+        <span>🔑 Gemini API Key</span>
+        <span id="api-key-status-dot" class="api-dot api-dot-empty"></span>
+        <span id="api-key-chevron" style="margin-left:auto;font-size:11px;color:var(--text2)">▼</span>
+      </div>
+      <div id="api-key-panel" style="display:none;margin-top:8px">
+        <div style="position:relative">
+          <input class="inp" id="inp-api-key" type="password"
+            placeholder="AIza…"
+            autocomplete="off" spellcheck="false"
+            oninput="onApiKeyInput(this)" />
+          <button onclick="toggleApiKeyVisibility()" id="api-vis-btn"
+            style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px;color:var(--text2);padding:0">👁</button>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-top:5px;line-height:1.5">
+          Diperlukan untuk @Qeets AI & fitur game.<br>
+          Dapatkan gratis di <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--acc)">aistudio.google.com</a>.
+          Tersimpan di browser, tidak dikirim ke server kecuali saat masuk room.
+        </div>
+        <div id="api-key-msg" style="font-size:11px;margin-top:4px;color:#00e5a0;display:none"></div>
+      </div>
+    </div>
+
     <div class="divider">atau gabung room aktif</div>
 
     <!-- PWA Install button (hidden until beforeinstallprompt) -->
@@ -266,6 +319,7 @@ let myName  = '';
 let myColor = '#00e5a0';
 let myCode  = '';
 let myRoomName = '';
+let geminiApiKey = '';
 let allRooms = [];
 let isPrivateRoom = false;
 let createPrivate = false;
@@ -592,6 +646,7 @@ window.doCreate = function() {
   enableButtons(false);
   setStatus('Membuat room…', true);
   socket.emit('create_room', { name: myName, roomName, color: myColor, isPrivate: createPrivate });
+  if (geminiApiKey) socket.emit('set_api_key', { key: geminiApiKey });
 };
 
 window.doJoin = function() {
@@ -602,6 +657,7 @@ window.doJoin = function() {
   enableButtons(false);
   setStatus('Bergabung…', true);
   socket.emit('join_room', { code, name: myName, color: myColor });
+  if (geminiApiKey) socket.emit('set_api_key', { key: geminiApiKey });
   pendingJoin = { code };
 };
 
@@ -1322,6 +1378,64 @@ window.installPWA = function() {
 // ═══════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════
+// ═══════════════════════════════════════════
+// API KEY MANAGEMENT
+// ═══════════════════════════════════════════
+(function initApiKey() {
+  const saved = localStorage.getItem('qeets_gemini_key') || '';
+  if (saved) {
+    geminiApiKey = saved;
+    const el = $('inp-api-key');
+    if (el) el.value = saved;
+    setApiDot('filled');
+  }
+})();
+
+window.toggleApiKey = function() {
+  const panel = $('api-key-panel');
+  const chev  = $('api-key-chevron');
+  const open  = panel.style.display === 'none';
+  panel.style.display = open ? 'block' : 'none';
+  chev.textContent = open ? '▲' : '▼';
+  if (open) $('inp-api-key').focus();
+};
+
+window.onApiKeyInput = function(el) {
+  const val = el.value.trim();
+  geminiApiKey = val;
+  if (val) {
+    localStorage.setItem('qeets_gemini_key', val);
+    setApiDot(val.startsWith('AIza') ? 'filled' : 'error');
+    const msg = $('api-key-msg');
+    if (val.startsWith('AIza')) {
+      msg.textContent = '✓ API key tersimpan di browser';
+      msg.style.color = '#00e5a0';
+    } else {
+      msg.textContent = '⚠ Format tidak dikenali (biasanya dimulai AIza…)';
+      msg.style.color = '#f5c340';
+    }
+    msg.style.display = 'block';
+  } else {
+    localStorage.removeItem('qeets_gemini_key');
+    setApiDot('empty');
+    $('api-key-msg').style.display = 'none';
+  }
+};
+
+function setApiDot(state) {
+  const dot = $('api-key-status-dot');
+  if (!dot) return;
+  dot.className = 'api-dot api-dot-' + state;
+}
+
+let apiKeyVisible = false;
+window.toggleApiKeyVisibility = function() {
+  const el = $('inp-api-key');
+  apiKeyVisible = !apiKeyVisible;
+  el.type = apiKeyVisible ? 'text' : 'password';
+  $('api-vis-btn').textContent = apiKeyVisible ? '🙈' : '👁';
+};
+
 buildEmojiPicker();
 </script>
 </body>

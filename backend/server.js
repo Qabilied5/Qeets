@@ -74,6 +74,7 @@ const rooms     = {};   // { [code]: { name, code, createdAt, createdBy, isPriva
 const members   = {};   // { [code]: { [socketId]: { name, color, id } } }
 const messages  = {};   // { [code]: [...msgObjects] }
 const reactions = {};   // { [code]: { [msgId]: { [emoji]: Set<name> } } }
+const games     = {};   // { [code]: { active, question, topic, answers: Map<name, answer>, expectedCount } }
 
 const MAX_MSGS = 100;
 const BOT_NAME  = 'Qeets';
@@ -97,6 +98,7 @@ function cleanupRoomIfEmpty(code) {
     delete members[code];
     delete messages[code];
     delete reactions[code];
+    delete games[code];
     io.emit('rooms_list', getRoomList());
   }
 }
@@ -108,6 +110,96 @@ function generateCode() {
     code = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
   } while (rooms[code]);
   return code;
+}
+
+// ─── GAME MODE ───
+
+const GAME_SYSTEM = `Kamu adalah Qeets, host kuis interaktif di chat. Tugasmu:
+1. Buat pertanyaan kuis singkat dan menarik berdasarkan topik yang diminta.
+2. Nilai jawaban para pemain dengan adil.
+Format respons HARUS ringkas. Bahasa menyesuaikan bahasa user.`;
+
+async function handleGameStart(code, text, userName) {
+  if (!geminiModel) {
+    sendBotMessage(code, '⚠️ Bot tidak aktif — GEMINI_API_KEY belum diset.');
+    return;
+  }
+
+  const topic = text.replace(/@Qeets\s+Game\b/gi, '').trim();
+  if (!topic) {
+    sendBotMessage(code, `Hei ${userName}! Sebutkan topiknya ya. Contoh: @Qeets Game Ibu Kota Negara`);
+    return;
+  }
+
+  const memberCount = Object.keys(members[code] || {}).length;
+  games[code] = { active: true, question: '', topic, answers: new Map(), expectedCount: memberCount };
+
+  io.to(code).emit('bot_typing', { typing: true });
+  try {
+    const chat = geminiModel.startChat({ systemInstruction: GAME_SYSTEM });
+    const result = await chat.sendMessage(
+      `Buat 1 pertanyaan kuis singkat (maks 2 kalimat) tentang: "${topic}". Hanya tulis pertanyaannya saja, tanpa jawaban.`
+    );
+    const question = result.response.text().trim();
+    games[code].question = question;
+
+    const memberList = Object.values(members[code] || {}).map(m => m.name).join(', ');
+    sendBotMessage(code,
+      `🎮 **GAME DIMULAI!** Topik: ${topic}\n\n❓ ${question}\n\n` +
+      `Jawab dengan mengetik: @Answer [jawaban kamu]\n` +
+      `Menunggu ${memberCount} pemain: ${memberList}`
+    );
+    io.to(code).emit('game_started', { topic, question, expectedCount: memberCount });
+  } catch (err) {
+    console.error('[Game start error]', err.message);
+    delete games[code];
+    sendBotMessage(code, `Maaf ${userName}, gagal membuat pertanyaan. Coba lagi ya!`);
+  } finally {
+    io.to(code).emit('bot_typing', { typing: false });
+  }
+}
+
+async function handleGameAnswer(code, text, userName) {
+  const game = games[code];
+  if (!game || !game.active) return false;
+
+  const answer = text.replace(/@Answer\b/gi, '').trim();
+  if (!answer) { sendBotMessage(code, `${userName}, jawaban tidak boleh kosong! Tulis: @Answer [jawabanmu]`); return true; }
+  if (game.answers.has(userName)) {
+    sendBotMessage(code, `${userName}, kamu sudah menjawab! Tunggu pemain lain ya.`);
+    return true;
+  }
+
+  game.answers.set(userName, answer);
+  const count = game.answers.size;
+  const expected = game.expectedCount;
+
+  io.to(code).emit('game_answer_in', { name: userName, count, expected });
+
+  if (count < expected) {
+    sendBotMessage(code, `✅ ${userName} sudah menjawab! (${count}/${expected}) Menunggu ${expected - count} pemain lagi…`);
+  } else {
+    // All answered — evaluate
+    game.active = false;
+    io.to(code).emit('bot_typing', { typing: true });
+    try {
+      const chat = geminiModel.startChat({ systemInstruction: GAME_SYSTEM });
+      const answerList = [...game.answers.entries()].map(([n, a]) => `${n}: "${a}"`).join('\n');
+      const result = await chat.sendMessage(
+        `Pertanyaan: "${game.question}"\n\nJawaban pemain:\n${answerList}\n\nNilai setiap jawaban dengan format:\n[Nama]: ✅ Benar / ❌ Salah / 🟡 Hampir — (koreksi singkat jika perlu). Ringkas, maks 1 baris per orang. Akhiri dengan skor total.`
+      );
+      const verdict = result.response.text().trim();
+      sendBotMessage(code, `🏆 **HASIL KUIS!**\n\n${verdict}\n\n_Ketik @Qeets Game [topik] untuk ronde baru!_`);
+      io.to(code).emit('game_ended', { verdict });
+    } catch (err) {
+      console.error('[Game eval error]', err.message);
+      sendBotMessage(code, `Maaf, gagal mengevaluasi jawaban. Coba mulai game baru!`);
+    } finally {
+      io.to(code).emit('bot_typing', { typing: false });
+      delete games[code];
+    }
+  }
+  return true;
 }
 
 // ─── Gemini bot responder ───
@@ -288,8 +380,16 @@ io.on('connection', (socket) => {
 
     io.to(code).emit('new_msg', msg);
 
-    // Check @Qeets trigger
-    if (text && /@Qeets\b/i.test(text)) {
+    // Check @Qeets Game trigger first
+    if (text && /@Qeets\s+Game\b/i.test(text)) {
+      handleGameStart(code, text, name);
+    }
+    // Check @Answer trigger (game answer)
+    else if (text && /@Answer\b/i.test(text)) {
+      handleGameAnswer(code, text, name);
+    }
+    // Check @Qeets trigger (normal bot)
+    else if (text && /@Qeets\b/i.test(text)) {
       handleBotMention(code, text, name);
     }
 

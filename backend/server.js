@@ -146,7 +146,7 @@ async function handleGameStart(code, text, userName) {
 
   io.to(code).emit('bot_typing', { typing: true });
   try {
-    const chat = geminiModel.startChat({ systemInstruction: GAME_SYSTEM });
+    const chat = geminiModel.startChat({ history: [], systemInstruction: GAME_SYSTEM });
     const result = await chat.sendMessage(
       `Buat 1 pertanyaan kuis singkat (maks 2 kalimat) tentang: "${topic}". Hanya tulis pertanyaannya saja, tanpa jawaban.`
     );
@@ -263,13 +263,11 @@ async function handleBotMention(code, userMsg, userName) {
   try {
     const history = buildChatHistory(code);
 
-    // Buat sesi chat baru dengan history percakapan yang sudah ada
     const chat = geminiModel.startChat({
       history,
       systemInstruction: SYSTEM_INSTRUCTION,
     });
 
-    // Kirim pesan user saat ini sebagai giliran baru
     const result = await chat.sendMessage(`[${userName}]: ${query}`);
     const text = result.response.text();
     sendBotMessage(code, text, userName);
